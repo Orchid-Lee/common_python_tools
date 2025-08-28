@@ -13,7 +13,7 @@ CORS(app)
 
 # 配置项 - 集中管理配置
 app.config.update({
-    'DATABASE_PATH': 'media_metadata.db',  # 数据库文件路径
+    'DATABASE_PATH': '/Users/lee/sqlite3/media_player.db',  # 数据库文件路径
     'TARGET_FOLDER': "/Volumes/STORE/sex_files/telegram_download",  # 基础文件目录
     'DEFAULT_PAGE_SIZE': 50,  # 默认每页记录数
     'MAX_PAGE_SIZE': 200,     # 最大每页记录数
@@ -55,14 +55,14 @@ def timed_lru_cache(seconds: int, maxsize: int = 128):
 # 数据库查询函数 - 带分页支持
 def get_files_from_db(
     file_type=None, 
-    group_id=None, 
+    group_code=None, 
     page=1, 
     page_size=app.config['DEFAULT_PAGE_SIZE']
 ):
     """
     从数据库查询文件信息（支持分页）
     :param file_type: 可选，筛选类型('video'或'image')
-    :param group_id: 可选，按group_id筛选
+    :param group_code: 可选，按group_code筛选
     :param page: 页码，从1开始
     :param page_size: 每页记录数
     :return: 分页文件数据和总记录数
@@ -82,7 +82,7 @@ def get_files_from_db(
         
         # 基础查询SQL和计数SQL
         base_query = """
-        SELECT file_name, file_path, file_type, group_id, parent_folder, 
+        SELECT file_name, file_path, file_type, group_code, parent_folder, 
                file_size, created_time, modified_time 
         FROM media_metadata 
         WHERE 1=1
@@ -99,10 +99,10 @@ def get_files_from_db(
             count_query += " AND file_type LIKE 'image/%'"
         
         # 添加分组筛选条件
-        if group_id:
-            base_query += " AND group_id = ?"
-            count_query += " AND group_id = ?"
-            params.append(group_id)
+        if group_code:
+            base_query += " AND group_code = ?"
+            count_query += " AND group_code = ?"
+            params.append(group_code)
         
         # 执行计数查询
         cursor.execute(count_query, params.copy())
@@ -128,7 +128,7 @@ def get_files_from_db(
                 'size': row['file_size'],
                 'created_time': row['created_time'],
                 'modified_time': row['modified_time'],
-                'group_id': row['group_id'],
+                'group_code': row['group_code'],
                 'parent_folder': row['parent_folder']
             })
         
@@ -161,14 +161,14 @@ def get_files_from_db(
 
 # 按文件夹分组的查询（用于需要按文件夹浏览的场景）
 @timed_lru_cache(seconds=app.config['CACHE_TIMEOUT'])
-def get_files_by_folder_from_db(file_type=None, group_id=None):
+def get_files_by_folder_from_db(file_type=None, group_code=None):
     """按文件夹分组查询文件（不带分页，用于文件夹列表展示）"""
     conn, cursor = None, None
     try:
         conn, cursor = get_db_connection()
         
         query = """
-        SELECT file_name, file_path, file_type, group_id, parent_folder, 
+        SELECT file_name, file_path, file_type, group_code, parent_folder, 
                file_size, created_time, modified_time 
         FROM media_metadata 
         WHERE 1=1
@@ -180,9 +180,9 @@ def get_files_by_folder_from_db(file_type=None, group_id=None):
         elif file_type == 'image':
             query += " AND file_type LIKE 'image/%'"
         
-        if group_id:
-            query += " AND group_id = ?"
-            params.append(group_id)
+        if group_code:
+            query += " AND group_code = ?"
+            params.append(group_code)
             
         query += " ORDER BY parent_folder, created_time DESC"
         
@@ -225,13 +225,13 @@ def get_files():
     获取文件列表（支持分页）
     支持参数:
     - type: 可选，筛选类型('video'或'image')
-    - group_id: 可选，按group_id筛选
+    - group_code: 可选，按group_code筛选
     - page: 可选，页码(默认1)
     - page_size: 可选，每页记录数(默认50，最大200)
     """
     # 解析请求参数
     file_type = request.args.get('type')
-    group_id = request.args.get('group_id')
+    group_code = request.args.get('group_code')
     
     # 解析分页参数
     try:
@@ -247,7 +247,7 @@ def get_files():
     # 查询数据
     result = get_files_from_db(
         file_type=file_type,
-        group_id=group_id,
+        group_code=group_code,
         page=page,
         page_size=page_size
     )
@@ -260,15 +260,15 @@ def get_folders():
     获取文件夹列表（包含每个文件夹的文件摘要）
     支持参数:
     - type: 可选，筛选类型('video'或'image')
-    - group_id: 可选，按group_id筛选
+    - group_code: 可选，按group_code筛选
     """
     file_type = request.args.get('type')
-    group_id = request.args.get('group_id')
+    group_code = request.args.get('group_code')
     
     if file_type and file_type not in ['video', 'image']:
         return jsonify({"error": "无效的类型参数，可选值为'video'或'image'"}), 400
     
-    folders_data = get_files_by_folder_from_db(file_type, group_id)
+    folders_data = get_files_by_folder_from_db(file_type, group_code)
     return jsonify({
         'total_folders': len(folders_data),
         'total_files': sum(folder['file_count'] for folder in folders_data),
@@ -327,4 +327,4 @@ def server_error(error):
     return jsonify({"error": "服务器内部错误"}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=8888, debug=False)
