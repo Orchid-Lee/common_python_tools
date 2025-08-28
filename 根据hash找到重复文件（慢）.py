@@ -56,7 +56,7 @@ def print_duplicate_files(duplicates):
 
 if __name__ == "__main__":
     # 替换成需要扫描的文件夹路径
-    target_folder = "/Volumes/STORE/sex_files/telegram_download"
+    target_folder = "/Volumes/STORE/sex_files/tg"
 
     # 获取重复文件列表
     found_duplicates = find_duplicate_files(target_folder)
