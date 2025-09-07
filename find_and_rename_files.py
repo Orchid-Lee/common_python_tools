@@ -20,7 +20,7 @@ def find_and_rename_files(foloder_path, suffix="_file"):
                 original_path = os.path.join(dirpath, filename)
 
                 # 构建新的文件名 
-                new_filename = filename + ".mp4"
+                new_filename = filename.replace(suffix, '') + ".mp4"
 
                 # 构建新的完整路径
                 new_path = os.path.join(dirpath, new_filename)
@@ -34,6 +34,6 @@ def find_and_rename_files(foloder_path, suffix="_file"):
 
 
 # 路径
-target_folder = "/Volumes/STORE/sex_files/tg"
+target_folder = "/Users/lee/Downloads/telegram_download"
 
 find_and_rename_files(target_folder, "_file")

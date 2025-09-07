@@ -1,22 +1,21 @@
-from flask import Flask, jsonify, send_file, request, Response
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 import sqlite3
 import os
 import mimetypes
 from functools import wraps, lru_cache
-from find_duplicate_files import find_duplicate_files
-from collections import defaultdict
 from datetime import datetime, timedelta, timezone  # 新增timezone导入
 
 app = Flask(__name__)
 CORS(app)
 
+# 'TARGET_FOLDER': "/Volumes/STORE/sex_files/telegram_download"
 # 配置项 - 集中管理配置
 app.config.update({
     'DATABASE_PATH': '/Users/lee/sqlite3/media_player.db',  # 数据库文件路径
-    'TARGET_FOLDER': "/Volumes/STORE/sex_files/telegram_download",  # 基础文件目录
-    'DEFAULT_PAGE_SIZE': 50,  # 默认每页记录数
-    'MAX_PAGE_SIZE': 200,     # 最大每页记录数
+    'TARGET_FOLDER': "/Volumes/STORE/",  # 基础文件目录
+    'DEFAULT_PAGE_SIZE': 800,  # 默认每页记录数
+    'MAX_PAGE_SIZE': 800,     # 最大每页记录数
     'CACHE_TIMEOUT': 300      # 缓存超时时间(秒)
 })
 
@@ -83,11 +82,11 @@ def get_files_from_db(
         # 基础查询SQL和计数SQL
         base_query = """
         SELECT file_name, file_path, file_type, group_code, parent_folder, 
-               file_size, created_time, modified_time 
-        FROM media_metadata 
+               file_size, created_time, modified_time, poster_path 
+        FROM media_data 
         WHERE 1=1
         """
-        count_query = "SELECT COUNT(*) as total FROM media_metadata WHERE 1=1"
+        count_query = "SELECT COUNT(*) as total FROM media_data WHERE 1=1"
         params = []
         
         # 添加类型筛选条件
@@ -115,7 +114,7 @@ def get_files_from_db(
         # 执行数据查询
         cursor.execute(base_query, params)
         rows = cursor.fetchall()
-        
+        print(f"数据库数据：{rows[0]['poster_path']}")
         # 整理数据
         files_data = []
         for row in rows:
@@ -129,7 +128,8 @@ def get_files_from_db(
                 'created_time': row['created_time'],
                 'modified_time': row['modified_time'],
                 'group_code': row['group_code'],
-                'parent_folder': row['parent_folder']
+                'parent_folder': row['parent_folder'],
+                'poster_path': row['poster_path']
             })
         
         # 计算总页数
@@ -169,8 +169,8 @@ def get_files_by_folder_from_db(file_type=None, group_code=None):
         
         query = """
         SELECT file_name, file_path, file_type, group_code, parent_folder, 
-               file_size, created_time, modified_time 
-        FROM media_metadata 
+               file_size, created_time, modified_time, poster_path
+        FROM media_data 
         WHERE 1=1
         """
         params = []
@@ -208,6 +208,13 @@ def get_files_by_folder_from_db(file_type=None, group_code=None):
                 'ext': file_ext,
                 'size': row['file_size'],
             })
+
+            if row['file_type'].startswith('video/'):
+                folders_data[folder]['poster_path'] = row['poster_path']
+            else:
+                folders_data[folder]['poster_path'] = row['file_path']
+                
+            folders_data[folder]['poster_path'] = row['file_path']
             folders_data[folder]['file_count'] += 1
         
         return list(folders_data.values())
